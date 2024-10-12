@@ -1,0 +1,142 @@
+import heapq
+import pandas as pd
+import random
+from sklearn.cluster import KMeans
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+
+# -------------------------------
+# 1. Definición del Grafo y Algoritmo de Dijkstra
+# -------------------------------
+
+class Grafo:
+    def __init__(self):
+        self.nodos = {}
+
+    def agregar_nodo(self, nombre):
+        """Agrega un nodo al grafo."""
+        self.nodos[nombre] = {}
+
+    def agregar_arista(self, desde, hacia, peso):
+        """Agrega una arista bidireccional entre dos nodos."""
+        self.nodos[desde][hacia] = peso
+        self.nodos[hacia][desde] = peso
+
+def dijkstra(grafo, inicio, fin):
+    cola_prioridad = [(0, inicio)]
+    distancias = {nodo: float('inf') for nodo in grafo.nodos}
+    distancias[inicio] = 0
+    camino = {nodo: None for nodo in grafo.nodos}
+
+    while cola_prioridad:
+        distancia_actual, nodo_actual = heapq.heappop(cola_prioridad)
+
+        if nodo_actual == fin:
+            break
+
+        for vecino, peso in grafo.nodos[nodo_actual].items():
+            nueva_distancia = distancia_actual + peso
+            if nueva_distancia < distancias[vecino]:
+                distancias[vecino] = nueva_distancia
+                camino[vecino] = nodo_actual
+                heapq.heappush(cola_prioridad, (nueva_distancia, vecino))
+
+    ruta = []
+    nodo = fin
+    while nodo is not None:
+        ruta.append(nodo)
+        nodo = camino[nodo]
+    ruta.reverse()
+
+    return ruta, distancias[fin]
+
+# Crear el grafo del sistema de transporte
+grafo = Grafo()
+nodos = ["A", "B", "C", "D", "E", "F"]
+for nodo in nodos:
+    grafo.agregar_nodo(nodo)
+
+aristas = [
+    ("A", "B", 4), ("B", "C", 7), ("A", "C", 5),
+    ("C", "D", 5), ("B", "D", 2), ("D", "E", 1),
+    ("C", "F", 3), ("E", "F", 2)
+]
+for desde, hacia, peso in aristas:
+    grafo.agregar_arista(desde, hacia, peso)
+
+def mostrar_mejor_ruta(grafo, inicio, fin):
+    ruta, distancia = dijkstra(grafo, inicio, fin)
+    if distancia == float('inf'):
+        print(f"No hay ruta disponible de {inicio} a {fin}.")
+    else:
+        print(f"La mejor ruta de {inicio} a {fin} es: {' -> '.join(ruta)} con una distancia de {distancia}.")
+
+rutas_a_buscar = [("A", "D"), ("A", "E"), ("A", "F"), ("B", "F")]
+for inicio, fin in rutas_a_buscar:
+    mostrar_mejor_ruta(grafo, inicio, fin)
+
+# -------------------------------
+# 2. Generación del Dataset Simulado
+# -------------------------------
+
+def crear_dataset_simulado(num_registros=100):
+    rutas = ['A', 'B', 'C', 'D', 'E', 'F']
+    datos = {
+        'Ruta': [],
+        'Parada': [],
+        'Tiempo_Viaje': [],
+        'Numero_Pasajeros': [],
+        'Satisfaccion': []
+    }
+
+    for _ in range(num_registros):
+        ruta = random.choice(rutas)
+        parada = f"Parada_{random.randint(1, 10)}"
+        tiempo_viaje = random.randint(5, 60)  
+        numero_pasajeros = random.randint(0, 50)  
+        satisfaccion = random.randint(1, 5)  
+
+        datos['Ruta'].append(ruta)
+        datos['Parada'].append(parada)
+        datos['Tiempo_Viaje'].append(tiempo_viaje)
+        datos['Numero_Pasajeros'].append(numero_pasajeros)
+        datos['Satisfaccion'].append(satisfaccion)
+
+    return pd.DataFrame(datos)
+
+dataset = crear_dataset_simulado()
+print("\nDataset Simulado:")
+print(dataset.head())
+
+# -------------------------------
+# 3. Aprendizaje No Supervisado: K-Means
+# -------------------------------
+
+def aplicar_kmeans(data, n_clusters=3):
+    modelo = KMeans(n_clusters=n_clusters, random_state=42)
+    data_cluster = data[['Tiempo_Viaje', 'Numero_Pasajeros']]
+    modelo.fit(data_cluster)
+    data['Cluster'] = modelo.labels_
+    print("\nResultado del K-Means:")
+    print(data.head())
+
+aplicar_kmeans(dataset)
+
+# -------------------------------
+# 4. Aprendizaje Supervisado: Regresión Lineal
+# -------------------------------
+
+def aplicar_regresion_lineal(data):
+    X = data[['Tiempo_Viaje', 'Numero_Pasajeros']]
+    y = data['Satisfaccion']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    modelo = LinearRegression()
+    modelo.fit(X_train, y_train)
+
+    y_pred = modelo.predict(X_test)
+    error = mean_squared_error(y_test, y_pred)
+    print(f"\nError cuadrático medio: {error}")
+
+aplicar_regresion_lineal(dataset)
